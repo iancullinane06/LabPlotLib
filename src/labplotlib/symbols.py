@@ -92,7 +92,7 @@ symbols = MappingProxyType(
         "top_half_integral": "⌠",
         "bottom_half_integral": "⌡",
         "not_sign": "¬",
-        "plus_minus": "±",
+        "pm": "±",
         "square_root": "√",
         "cube_root": "∛",
         "fourth_root": "∜",
