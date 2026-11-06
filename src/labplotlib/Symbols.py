@@ -1,4 +1,5 @@
 from types import MappingProxyType
+from typing import Mapping
 
 symbols = MappingProxyType(
     {
@@ -13,7 +14,7 @@ symbols = MappingProxyType(
         "set_is_superset_of": "⊇",
         "set_is_proper_superset_of": "⊃",
         "set_is_not_superset_of": "⊅",
-        "set_universal": "ξ",
+        "set_universal": "𝕌",
         "set_minus": "∖",
         "set_cartesian_product": "×",
         "set_difference": "\\",
@@ -75,7 +76,7 @@ symbols = MappingProxyType(
         "degree_celsius": "°C",
         "degree_fahrenheit": "°F",
         "diameter": "⌀",
-        "multiplication": "✕",
+        "multiplication": "×",
         "division": "÷",
         "left_floor": "⌊",
         "right_floor": "⌋",
@@ -91,7 +92,7 @@ symbols = MappingProxyType(
         "top_half_integral": "⌠",
         "bottom_half_integral": "⌡",
         "not_sign": "¬",
-        "+/-": "±",
+        "plus_minus": "±",
         "square_root": "√",
         "cube_root": "∛",
         "fourth_root": "∜",
@@ -100,7 +101,8 @@ symbols = MappingProxyType(
         "right_angle": "∟",
         "angle": "∠",
         "therefore": "∴",
-        "approximately_equal_to": "≅",
+        "approximately_equal_to": "≈",
+        "congruent_to": "≅",
         "not_equal_to": "≠",
         "less_than_or_equal_to": "≤",
         "greater_than_or_equal_to": "≥",
@@ -112,31 +114,30 @@ symbols = MappingProxyType(
 )
 
 
-def search(namelike: str) -> MappingProxyType:
-
+def search(namelike: str) -> Mapping[str, str]:
     """
-    Return a dictionary of symbols with names
-    containing namelike argument
-    """    
+    Return a read-only mapping of the symbols whose names contain
+    ``namelike``. The match is case-insensitive.
+    """
 
-    filtered = {k: v for k, v in symbols.items() if namelike in k}
+    needle = namelike.lower()
+    filtered = {k: v for k, v in symbols.items() if needle in k.lower()}
 
     return MappingProxyType(filtered)
 
 
-def print_symbols(symbols_to_print:MappingProxyType = symbols) -> None:
+def _hex_escape(char: str) -> str:
+    code = ord(char)
+    return f"\\u{code:04x}" if code <= 0xFFFF else f"\\U{code:08x}"
 
+
+def print_symbols(symbols_to_print: Mapping[str, str] = symbols) -> None:
     """
-    Prints symbols in the symbols argument,
-    or all if this is omitted
+    Print the symbols in ``symbols_to_print`` (all symbols by default)
+    with their decimal and hexadecimal code points.
     """
 
-    for symbol in symbols_to_print.keys():
-
-        print(f"{symbol.ljust(32, ' ')}", end="")
-
-        print(f" {symbols_to_print[symbol]}", end="")
-
-        print(f"   decimal: {str(ord(symbols_to_print[symbol])).ljust(5, ' ')}", end="")
-
-        print(f"   hexadecimal: \\u{hex(ord(symbols_to_print[symbol]))[2:]}")
+    for name, value in symbols_to_print.items():
+        decimal = " ".join(str(ord(c)) for c in value)
+        hexadecimal = " ".join(_hex_escape(c) for c in value)
+        print(f"{name:<32} {value}   decimal: {decimal:<8}   hexadecimal: {hexadecimal}")

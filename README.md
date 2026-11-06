@@ -28,9 +28,35 @@ print_symbols(search("fraction_one"))
 ```
 
 The `symbols` mapping is read-only. `search(name_part)` returns a read-only
-mapping containing symbol names that include `name_part`.
+mapping of symbol names containing `name_part` (case-insensitive).
 
-Importing `labplotlib.Styling` applies the library's Seaborn plotting theme.
+## Plotting
+
+```python
+from labplotlib import errorbar_plot, line_plot, scatter_with_fit
+
+line_plot([1, 2, 3], [1, 4, 9], title="Squares", xlabel="x", ylabel="y")
+scatter_with_fit(x, y, degree=1, filename="fit.png", save_directory="plots")
+errorbar_plot(x, y, yerr=err, show=False)  # returns the matplotlib Figure
+```
+
+Each function returns the `Figure`. Pass `filename` (and optionally
+`save_directory`, created if missing) to save, and `show=False` to skip
+`plt.show()`. Importing the package does not change global matplotlib
+settings; the plot functions apply the Seaborn theme via `apply_theme()`, which
+you can also call yourself. Lower-level helpers `style_axis` and `finish_plot`
+are public too.
+
+## Development
+
+```powershell
+python -m pip install -e ".[dev]"
+ruff check .
+python -m unittest discover -s tests
+```
+
+The version lives in `src/labplotlib/__init__.py`; see
+[CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Publishing
 

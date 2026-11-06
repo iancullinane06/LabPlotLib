@@ -4,21 +4,47 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "labplotlib"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Plot styling helpers and searchable mathematical symbols."
 readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "iancullinane06" }]
 dependencies = [
     "matplotlib>=3.5",
+    "numpy>=1.21",
     "seaborn>=0.11.2",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+dev = ["ruff", "build", "twine"]
+
+[project.urls]
+Homepage = "https://github.com/iancullinane06/LabPlotLib"
+Issues = "https://github.com/iancullinane06/LabPlotLib/issues"
+Changelog = "https://github.com/iancullinane06/LabPlotLib/blob/main/CHANGELOG.md"
+
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
+
+[tool.setuptools.dynamic]
+version = { attr = "labplotlib.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+labplotlib = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
