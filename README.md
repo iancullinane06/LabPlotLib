@@ -31,3 +31,17 @@ The `symbols` mapping is read-only. `search(name_part)` returns a read-only
 mapping containing symbol names that include `name_part`.
 
 Importing `labplotlib.Styling` applies the library's Seaborn plotting theme.
+
+## Publishing
+
+Publishing is automated when a GitHub Release is published. Configure a PyPI
+trusted publisher for this repository with:
+
+- Owner and repository: the values for this GitHub project
+- Workflow: `.github/workflows/publish.yml`
+- Environment: `pypi`
+
+Then update the version in `pyproject.toml`, push the change, and create a
+GitHub Release with a matching version tag (for example, `v0.1.1`). The
+workflow runs the tests, builds the distributions, and publishes them without
+requiring a PyPI API token in GitHub secrets.
