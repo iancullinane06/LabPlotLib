@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+### Changed
+- Plotting helpers are now provided by `labplotlib.plotting` instead of
+  `labplotlib.plots`.
+- Fit plots can label the fit by slope or polynomial degree; residual plots
+  use a taller figure with more space for the fit than the residual panel.
+
 ## 0.3.0
 
 ### Changed

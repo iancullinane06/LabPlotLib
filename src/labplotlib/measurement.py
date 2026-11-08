@@ -86,7 +86,10 @@ class Measurement:
         cls, frame: Any, value: str, *, uncertainty: Optional[str] = None,
         relative: Optional[str] = None, granularity: Optional[Any] = None,
     ) -> "Measurement":
-        """Read named DataFrame columns; relative errors are fractions, not percentages."""
+        """Read named DataFrame columns;
+        relative errors
+        
+        """
         return cls.from_pm(
             frame[value], None if uncertainty is None else frame[uncertainty],
             relative=None if relative is None else frame[relative], granularity=granularity,

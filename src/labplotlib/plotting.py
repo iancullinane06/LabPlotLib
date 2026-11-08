@@ -73,6 +73,7 @@ def scatter_with_fit(
     filename: Optional[PathLike] = None,
     save_directory: Optional[PathLike] = None,
     show: bool = False,
+    label_slope: bool = True,
     figsize: Size = (8, 5),
     *,
     ax: Optional[Axes] = None,
@@ -95,7 +96,7 @@ def scatter_with_fit(
         ax.errorbar(x_values, y_values, yerr=yerr, fmt=marker, color=color, label=label, capsize=3)
     ax.plot(
         fit_x, np.polyval(fit.coefficients, fit_x),
-        color=fit_color, label=f"fit (degree {degree})",
+        color=fit_color, label=f"fit (slope {fit.coefficients[-2]:.3g})" if label_slope else f"fit (degree {degree})",
     )
     ax.legend()
     style_axis(ax, title, xlabel, ylabel)
@@ -146,7 +147,8 @@ def scatter_with_residuals(
     filename: Optional[PathLike] = None,
     save_directory: Optional[PathLike] = None,
     show: bool = False,
-    figsize: Size = (8, 5),
+    label_slope: bool = True,
+    figsize: Size = (8, 7),
     *,
     axes: Optional[Tuple[Axes, Axes]] = None,
     yerr: Optional[Errors] = None,
@@ -161,14 +163,14 @@ def scatter_with_residuals(
     x_values, y_values = _data(x, y)
     fit = polynomial_fit(x_values, y_values, degree, yerr)
     if axes is None:
-        fig, (ax, residual_ax) = plt.subplots(2, 1, figsize=figsize, sharex=True)
+        fig, (ax, residual_ax) = plt.subplots(2, 1, figsize=figsize, sharex=True, height_ratios=[3, 1])
     else:
         ax, residual_ax = axes
         if ax is residual_ax or ax.figure is not residual_ax.figure:
             raise ValueError("axes must be distinct and belong to the same figure")
         fig = ax.figure
     scatter_with_fit(x_values, y_values, degree, title, None, ylabel, ax=ax, yerr=yerr,
-                     label=label, color=color, fit_color=fit_color, marker=marker)
+                     label=label, color=color, fit_color=fit_color, marker=marker, label_slope=label_slope)
     if yerr is None:
         residual_ax.scatter(x_values, fit.residuals, color=color, marker=marker)
     else:

@@ -1,6 +1,6 @@
 from .measurement import Measurement
 from .methods import PolynomialFit, polynomial_fit
-from .plots import (
+from .plotting import (
     errorbar_plot,
     line_plot,
     scatter_with_fit,
@@ -9,7 +9,7 @@ from .plots import (
 from .styling import apply_theme, finish_plot, style_axis
 from .symbols import print_symbols, search, symbols
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "apply_theme",
