@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+### Changed
+- Plotting functions and `finish_plot` no longer show figures by default.
+- Plotting functions no longer apply a global theme. Call `apply_theme`
+  explicitly to opt in. When no save or show is requested, plot functions
+  leave layout and finalization to the caller.
+- Axis styling leaves unspecified labels unchanged.
+
+### Added
+- Existing axes can be supplied for composable plots, including a pair of axes
+  for `scatter_with_residuals`.
+- `polynomial_fit` provides fit coefficients, residuals, R², and chi-squared
+  statistics, with optional weighting by y uncertainties.
+- Plot labels, colors, markers, and save DPI can be customized.
+- `Measurement` supports supplied absolute/relative uncertainties, sample
+  standard deviations, quadrature propagation, and pandas columns.
+
 ## 0.2.0
 
 ### Changed (breaking)

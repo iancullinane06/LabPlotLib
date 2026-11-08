@@ -31,7 +31,7 @@ class SymbolTests(unittest.TestCase):
         self.assertIn("\\U0001d54c", output)
 
     def test_renamed_symbols(self):
-        self.assertIn("plus_minus", symbols)
+        self.assertIn("pm", symbols)
         self.assertNotIn("+/-", symbols)
         self.assertEqual(symbols["approximately_equal_to"], "≈")
 

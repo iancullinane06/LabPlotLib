@@ -21,16 +21,21 @@ def style_axis(
     ylabel: Optional[str] = None,
 ) -> None:
     """Set a bold title and axis labels on ``ax``."""
-    ax.set(xlabel=xlabel, ylabel=ylabel)
-    if title:
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    if title is not None:
         ax.set_title(title, fontdict={"fontsize": 14, "fontweight": "bold"})
 
 
 def finish_plot(
     fig: Figure,
-    filename: Optional[str] = None,
+    filename: Optional[PathLike] = None,
     save_directory: Optional[PathLike] = None,
-    show: bool = True,
+    show: bool = False,
+    *,
+    dpi: Optional[float] = None,
 ) -> Figure:
     """
     Tidy the layout, optionally save the figure, optionally show it,
@@ -40,7 +45,9 @@ def finish_plot(
     if filename is not None:
         directory = Path(save_directory) if save_directory is not None else Path.cwd()
         directory.mkdir(parents=True, exist_ok=True)
-        fig.savefig(directory / filename)
+        path = directory / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=dpi)
     if show:
         plt.show()
     return fig
