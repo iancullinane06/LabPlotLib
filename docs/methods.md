@@ -35,7 +35,8 @@ print(fit.reduced_chi_squared)
 | `r_squared` | Unweighted R², or `None` when all y values are equal. |
 | `chi_squared` | Chi-squared statistic, or `None` without y uncertainties. |
 | `reduced_chi_squared` | Chi-squared divided by `N - degree - 1`, or `None` without uncertainties or positive degrees of freedom. |
-
+| `p_value` | Probability of a chi-squared at least this large by chance, or `None` without uncertainties or positive degrees of freedom. |
+| `dof` | Degrees of freedom, `N - degree - 1`, or `None` if not computed. |
 ## `chi_squared(y_obs, y_exp, y_err)`
 
 ```python

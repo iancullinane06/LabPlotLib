@@ -18,7 +18,8 @@ class PolynomialFit:
     r_squared: Optional[float]
     chi_squared: Optional[float]
     reduced_chi_squared: Optional[float]
-
+    p_value: Optional[float] = None
+    dof: Optional[int] = None
 
 def _data(x: Sequence[float], y: Sequence[float]) -> Tuple[np.ndarray, np.ndarray]:
     x_values = np.asarray(unpack_measurements(x)[0], dtype=float)
@@ -72,12 +73,15 @@ def polynomial_fit(
     r_squared = None if total == 0 else float(1 - np.sum(residuals**2) / total)
     chi_squared = None
     reduced_chi_squared = None
+    p_value = None
+    dof = x_values.size - degree - 1
     if uncertainties is not None:
         chi_squared = float(np.sum((residuals / uncertainties) ** 2))
-        dof = x_values.size - degree - 1
         if dof > 0:
             reduced_chi_squared = chi_squared / dof
-    return PolynomialFit(coefficients, residuals, r_squared, chi_squared, reduced_chi_squared)
+            p_value = float(chi2.sf(chi_squared, dof))
+    return PolynomialFit(coefficients, residuals, r_squared, chi_squared, reduced_chi_squared,
+                         p_value, dof)
 
 
 def k_means(X, k, max_iters=100):

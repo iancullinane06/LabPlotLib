@@ -72,8 +72,9 @@ Add units to axis labels as shown above.
 | --- | --- |
 | `line_plot(x, y)` | Data connected by a line. |
 | `errorbar_plot(x, y, xerr=..., yerr=...)` | Points with optional x and y error bars. |
-| `scatter_with_fit(x, y, degree=1, yerr=...)` | Points and a polynomial fit. |
+| `scatter_with_fit(x, y, degree=1, yerr=..., model=...)` | Points and a polynomial or custom-model fit, in matching colours, with errors by default. |
 | `scatter_with_residuals(x, y, degree=1, yerr=...)` | A fit and a second axes showing residuals. |
+| `bode_plot(f, gain, phase)` | Gain in dB on a log frequency axis, with phase on a twin axis. |
 
 These functions accept equal-length, finite, one-dimensional data, including
 NumPy arrays and numeric pandas Series. `errorbar_plot` accepts scalar,
@@ -244,9 +245,10 @@ for a column of fractional uncertainties, and optionally pass both
 which can be installed with `python -m pip install pandas`.
 
 `errorbar_plot` automatically uses uncertainties on `Measurement` x and y
-values. `scatter_with_fit`, `scatter_with_residuals`, and `polynomial_fit`
-automatically use y uncertainties for weighting; explicit `yerr` overrides
-them. Ordinary numeric pandas Series work without a `Measurement`. A Series
+values. `scatter_with_fit` and `scatter_with_residuals` draw x and y
+uncertainties and weight the fit by y uncertainties by default (pass
+`use_errors=False` to turn this off); `polynomial_fit` also weights by y
+uncertainties. Explicit `yerr` overrides inferred values. Ordinary numeric pandas Series work without a `Measurement`. A Series
 of scalar `Measurement` objects is also supported; its uncertainties must
 either all be supplied or all be absent. `line_plot` uses the values only.
 
@@ -257,6 +259,22 @@ from labplotlib import Measurement, errorbar_plot
 readings = pd.Series([Measurement.from_pm(1.0, 0.1),
                       Measurement.from_pm(2.0, 0.2)])
 fig = errorbar_plot(pd.Series([0, 1]), readings, xlabel="Time (s)", ylabel="Length (m)")
+```
+
+## Fitting and electronics
+
+`fit_model` fits any model (built-ins: `exponential_decay`, `exponential_rise`,
+`lorentzian`, `gaussian`, `power_law`, `diode`) with parameter uncertainties,
+χ², reduced χ² and a p-value. Electronics helpers cover cutoff frequency,
+roll-off slope, resonance and Q, time constants, rise time, and phase from a
+time delay, sine fit or Lissajous figure. See [fitting](docs/fitting.md) and
+[electronics](docs/electronics.md).
+
+```python
+from labplotlib import exponential_decay, fit_model, cutoff_frequency
+
+fit = fit_model(exponential_decay, t, v, yerr=0.05)
+print(fit.parameter("tau"))
 ```
 
 ## Additional analysis helpers

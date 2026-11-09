@@ -8,8 +8,24 @@
 - `get_cmap()` resolves Seaborn/Matplotlib colormap names; the default is
   `"crest"`, with `"flare"` and `"Spectral"` recommended.
 - `add_colorbar()` attaches a labelled colourbar to an axes.
+- `fit_model()` fits any `model(x, *params)` with uncertainties, χ², reduced χ²
+  and p-value; built-in `exponential_decay`, `exponential_rise`, `lorentzian`,
+  `gaussian`, `power_law` and `diode` models guess their own start values.
+- `scatter_with_fit()` and `scatter_with_residuals()` accept `model`, `p0`,
+  `show_stats`, `xerr`, `xscale` and `yscale`; `annotate_fit()` adds a
+  statistics box.
+- `bode_plot()` draws gain in dB with phase on a twin axis.
+- Electronics helpers: `cutoff_frequency`, `rolloff_slope`, `resonance`,
+  `time_constant`, `rise_time`, `phase_from_delay`, `time_delay`,
+  `phase_difference`, `phase_from_lissajous`.
+- `Measurement` gains `apply()`, `sin`/`cos`/`tan`/`arcsin`/`arccos`/`arctan`/
+  `exp`/`log`/`log10`/`sqrt` in `labplotlib.measurement` with error propagation,
+  `prefix="auto"` and `uncertainty_digits` in `to_string()`.
+- `PolynomialFit` gains `p_value` and `dof`.
 
 ### Changed
+- `scatter_with_fit()` draws and uses `Measurement` uncertainties by default;
+  pass `use_errors=False` to disable.
 - Fit plots colour the data and its fit with the same hue (fit paler). On shared
   axes each new dataset takes the next colour in the cycle. `fit_color` now
   defaults to `None` instead of `"C1"`.

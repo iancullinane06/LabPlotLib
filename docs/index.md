@@ -1,12 +1,14 @@
 # LabPlotLib reference
 
-This reference describes the LabPlotLib 0.6.0 API. Each page covers one
+This reference describes the LabPlotLib 0.8.0 API. Each page covers one
 module, with examples, parameters, and return values.
 
 | Module | What it covers |
 | --- | --- |
-| [measurement](measurement.md) | Values, uncertainties, arithmetic, and formatting |
-| [plotting](plotting.md) | Line plots, fits, error bars, and residuals |
+| [measurement](measurement.md) | Values, uncertainties, arithmetic, physics functions, and formatting |
+| [plotting](plotting.md) | Line plots, fits, error bars, residuals, and Bode plots |
+| [fitting](fitting.md) | Arbitrary model fits with χ², p-values, and built-in electronics models |
+| [electronics](electronics.md) | Cutoff, roll-off, resonance, time constants, rise time, and phase |
 | [methods](methods.md) | Polynomial fits, fit statistics, and clustering |
 | [styling](styling.md) | Theme, axes, figure layout, saving, and showing |
 | [symbols](symbols.md) | Mathematical symbol lookup and printing |

@@ -1,6 +1,32 @@
+from .electronics import (
+    Resonance,
+    cutoff_frequencies,
+    cutoff_frequency,
+    gain_to_db,
+    phase_difference,
+    phase_from_delay,
+    phase_from_lissajous,
+    resonance,
+    rise_time,
+    rolloff_slope,
+    time_constant,
+    time_delay,
+)
+from .fitting import (
+    ModelFit,
+    diode,
+    exponential_decay,
+    exponential_rise,
+    fit_model,
+    gaussian,
+    lorentzian,
+    power_law,
+)
 from .measurement import Measurement
 from .methods import PolynomialFit, polynomial_fit
 from .plotting import (
+    annotate_fit,
+    bode_plot,
     errorbar_plot,
     line_plot,
     scatter_plot,
@@ -10,17 +36,40 @@ from .plotting import (
 from .styling import add_colorbar, apply_theme, finish_plot, get_cmap, style_axis
 from .symbols import print_symbols, search, symbols
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 __all__ = [
     "add_colorbar",
+    "annotate_fit",
     "apply_theme",
+    "bode_plot",
+    "cutoff_frequencies",
+    "cutoff_frequency",
+    "diode",
+    "exponential_decay",
+    "exponential_rise",
+    "fit_model",
+    "gain_to_db",
+    "gaussian",
     "get_cmap",
+    "lorentzian",
     "Measurement",
+    "ModelFit",
+    "phase_difference",
+    "phase_from_delay",
+    "phase_from_lissajous",
     "PolynomialFit",
+    "power_law",
+    "Resonance",
+    "resonance",
+    "rise_time",
+    "rolloff_slope",
+    "time_constant",
+    "time_delay",
     "errorbar_plot",
     "finish_plot",
     "line_plot",
+    "bode_plot",
     "print_symbols",
     "polynomial_fit",
     "scatter_plot",

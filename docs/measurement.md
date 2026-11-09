@@ -175,7 +175,7 @@ print(pressure)  # 2.000 ± 0.100 MPa
 pressure.set_unit(None)
 ```
 
-## `to_string(format="auto", *, decimals=3, unit=None, prefix=None)`
+## `to_string(format="auto", *, decimals=3, unit=None, prefix=None, uncertainty_digits=None)`
 
 Format a measurement without changing its stored values or display metadata.
 `str(measurement)` and `print(measurement)` use the defaults and stored unit.
@@ -185,7 +185,8 @@ Format a measurement without changing its stored values or display metadata.
 | `format` | `"auto"` uses scientific notation for nonzero magnitudes below `0.001` or at least `1000`; `"raw"` uses decimal notation; `"scientific"` always uses scientific notation. |
 | `decimals` | Number of decimal places, including in the scientific mantissa; defaults to `3`. `None` disables rounding. |
 | `unit` | Optional unprefixed display unit overriding the stored unit. Supplying it without `prefix` omits any stored prefix. |
-| `prefix` | Optional SI prefix name or symbol. With no `unit` argument, a stored unit is used. If neither argument is supplied, the stored prefix is used. |
+| `prefix` | Optional SI prefix name or symbol. With no `unit` argument, a stored unit is used. If neither argument is supplied, the stored prefix is used. `"auto"` picks the engineering prefix (k, M, m, µ, …) that suits the value, so `Measurement(1200, 100)` with unit `"Ω"` prints `1.200 ± 0.100 kΩ`. `prefix="auto"` is also accepted by `Measurement` and `set_unit`. |
+| `uncertainty_digits` | Scalar measurements with an uncertainty only. Round the uncertainty to this many significant figures and the value to the same decimal place, overriding `decimals`. `1` gives `0.04`; `2` gives `0.040`. |
 
 **Returns:** a string containing the value, optional `±` uncertainty, and
 optional prefixed unit. Scientific exponents use Unicode superscripts.
@@ -198,6 +199,37 @@ from labplotlib import Measurement
 pressure = Measurement(2_000_000, 100_000)
 print(pressure.to_string(format="raw", decimals=1))  # 2000000.0 ± 100000.0
 print(pressure.to_string(unit="Pa", prefix="mega"))  # 2.000 ± 0.100 MPa
+
+resistance = Measurement(1200, 100)
+print(resistance.to_string(unit="Ω", prefix="auto", uncertainty_digits=1))  # 1.2 ± 0.1 kΩ
+```
+
+## `apply(function, derivative=None, *, step=1e-6)`
+
+Propagate uncertainty through any scalar function to first order,
+`σ_f = |f′(x)|·σ`. The derivative is estimated by central difference unless
+`derivative` is supplied. **Returns:** a new `Measurement`; units are not
+carried over.
+
+## Mathematical functions
+
+```python
+from labplotlib.measurement import sin, cos, tan, arcsin, arccos, arctan, exp, log, log10, sqrt
+```
+
+These are not exported from the package root, so they do not shadow `math` or
+`numpy` names. Each accepts a number, array or `Measurement`, always returns a
+`Measurement`, and propagates uncertainty to first order. Angles are in
+radians. Arguments outside the function's domain (for example `log` of a
+non-positive value, `sqrt` of a negative, `arcsin` outside [−1, 1]) raise
+`ValueError`.
+
+```python
+from labplotlib import Measurement
+from labplotlib.measurement import arctan, exp
+
+phase = arctan(Measurement(2.0, 0.1))     # 1.107 ± 0.020
+decay = exp(Measurement(-1.0, 0.05))
 ```
 
 ## Arithmetic

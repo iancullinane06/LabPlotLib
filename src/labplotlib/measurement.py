@@ -42,6 +42,57 @@ def _numeric(value: Any, name: str) -> np.ndarray:
     return result
 
 
+_ENGINEERING_PREFIXES = {
+    -30: "q", -27: "r", -24: "y", -21: "z", -18: "a", -15: "f", -12: "p", -9: "n",
+    -6: "µ", -3: "m", 0: "", 3: "k", 6: "M", 9: "G", 12: "T", 15: "P", 18: "E",
+    21: "Z", 24: "Y", 27: "R", 30: "Q",
+}
+_SUPERSCRIPT = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def _valid_prefix(prefix: Any) -> bool:
+    return isinstance(prefix, str) and (prefix == "auto" or prefix in _SI_PREFIXES)
+
+
+def _auto_prefix(values: np.ndarray) -> tuple:
+    """Return the symbol and scale of the multiple-of-three prefix that suits the largest value."""
+    largest = float(np.max(np.abs(values))) if values.size else 0.0
+    if largest == 0:
+        return "", 1.0
+    exponent = int(np.floor(np.log10(largest) / 3) * 3)
+    exponent = max(-30, min(30, exponent))
+    return _ENGINEERING_PREFIXES[exponent], 10.0**exponent
+
+
+def _format_rounded(value: np.ndarray, uncertainty: Optional[np.ndarray], digits: int,
+                    notation: str) -> str:
+    """Round the uncertainty to ``digits`` significant figures and the value to match."""
+    if value.ndim != 0:
+        raise ValueError("uncertainty_digits supports scalar measurements only")
+    if uncertainty is None:
+        raise ValueError("uncertainty_digits requires an uncertainty")
+    v, u = float(value), float(uncertainty)
+    scientific = notation == "scientific" or (
+        notation == "auto" and v != 0 and not 1e-3 <= abs(v) < 1e3
+    )
+    exponent = 0
+    if scientific:
+        reference = abs(v) if v != 0 else u
+        exponent = int(np.floor(np.log10(reference))) if reference > 0 else 0
+        v, u = v / 10.0**exponent, u / 10.0**exponent
+    if u > 0:
+        u_exponent = int(np.floor(np.log10(float(f"{u:.{digits - 1}e}"))))
+        places = digits - 1 - u_exponent
+        v, u = round(v, places), round(u, places)
+        places = max(places, 0)
+    else:
+        places = 3
+    text = f"{v:.{places}f} ± {u:.{places}f}"
+    if scientific:
+        return f"({text}) x 10{str(exponent).translate(_SUPERSCRIPT)}"
+    return text
+
+
 @dataclass(frozen=True, eq=False)
 class Measurement:
     """Scalar or array of values and their absolute standard uncertainties.
@@ -77,7 +128,7 @@ class Measurement:
         if self.prefix is not None:
             if self.unit is None:
                 raise ValueError("prefix requires a unit")
-            if not isinstance(self.prefix, str) or self.prefix not in _SI_PREFIXES:
+            if not _valid_prefix(self.prefix):
                 raise ValueError(f"unsupported SI prefix: {self.prefix}")
 
     @classmethod
@@ -206,6 +257,26 @@ class Measurement:
                 uncertainty = np.abs(power * self.value ** (power - 1)) * self.uncertainty
         return Measurement(result, uncertainty)
 
+    def apply(self, function: Any, derivative: Any = None, *, step: float = 1e-6) -> "Measurement":
+        """Apply a function and propagate uncertainty to first order.
+
+        ``derivative`` gives d(function)/d(value); when omitted it is estimated by a
+        central difference. Units are not carried over.
+        """
+        values = self.value
+        with np.errstate(all="ignore"):
+            result = np.asarray(function(values), dtype=float)
+            uncertainty = None
+            if self.uncertainty is not None:
+                if derivative is None:
+                    h = step * np.maximum(np.abs(values), 1.0)
+                    slope = (np.asarray(function(values + h), dtype=float)
+                             - np.asarray(function(values - h), dtype=float)) / (2 * h)
+                else:
+                    slope = np.asarray(derivative(values), dtype=float)
+                uncertainty = np.abs(slope) * self.uncertainty
+        return Measurement(result, uncertainty)
+
     def to_string(
         self,
         format: Literal["auto", "raw", "scientific"] = "auto",
@@ -213,10 +284,21 @@ class Measurement:
         decimals: Optional[int] = 3,
         unit: Optional[str] = None,
         prefix: Optional[str] = None,
+        uncertainty_digits: Optional[int] = None,
     ) -> str:
-        """Format the measurement, optionally overriding its display unit and prefix."""
+        """Format the measurement, optionally overriding its display unit and prefix.
+
+        ``prefix="auto"`` picks the multiple-of-three SI prefix that suits the
+        magnitude. ``uncertainty_digits`` rounds a scalar's uncertainty to that
+        many significant figures and the value to match, e.g. ``1.2 ± 0.1 kΩ``.
+        """
         if format not in ("auto", "raw", "scientific"):
             raise ValueError("format must be 'auto', 'raw', or 'scientific'")
+        if uncertainty_digits is not None and (
+            not isinstance(uncertainty_digits, int) or isinstance(uncertainty_digits, bool)
+            or uncertainty_digits < 1
+        ):
+            raise ValueError("uncertainty_digits must be a positive integer or None")
         if decimals is not None and (
             not isinstance(decimals, int) or isinstance(decimals, bool) or decimals < 0
         ):
@@ -234,10 +316,13 @@ class Measurement:
         prefix_symbol = ""
         scale = 1.0
         if display_prefix is not None:
-            if not isinstance(display_prefix, str) or display_prefix not in _SI_PREFIXES:
+            if not _valid_prefix(display_prefix):
                 raise ValueError(f"unsupported SI prefix: {display_prefix}")
-            prefix_symbol, exponent = _SI_PREFIXES[display_prefix]
-            scale = 10.0**exponent
+            if display_prefix == "auto":
+                prefix_symbol, scale = _auto_prefix(self.value)
+            else:
+                prefix_symbol, exponent = _SI_PREFIXES[display_prefix]
+                scale = 10.0**exponent
 
         value = self.value / scale
         uncertainty = None if self.uncertainty is None else self.uncertainty / scale
@@ -270,9 +355,12 @@ class Measurement:
                 values, formatter={"float_kind": format_number}
             )
 
-        result = format_values(value)
-        if uncertainty is not None:
-            result += f" ± {format_values(uncertainty)}"
+        if uncertainty_digits is not None:
+            result = _format_rounded(value, uncertainty, uncertainty_digits, format)
+        else:
+            result = format_values(value)
+            if uncertainty is not None:
+                result += f" ± {format_values(uncertainty)}"
         if display_unit is not None:
             result += f" {prefix_symbol}{display_unit}"
         return result
@@ -286,13 +374,85 @@ class Measurement:
         if prefix is not None:
             if unit is None:
                 raise ValueError("prefix requires a unit")
-            if not isinstance(prefix, str) or prefix not in _SI_PREFIXES:
+            if not _valid_prefix(prefix):
                 raise ValueError(f"unsupported SI prefix: {prefix}")
         object.__setattr__(self, "unit", unit)
         object.__setattr__(self, "prefix", prefix)
 
     def __str__(self) -> str:
         return self.to_string()
+
+
+def _lift(name: str, function: Any, derivative: Any, valid: Any, summary: str) -> Any:
+    def wrapper(x: Any) -> Measurement:
+        measurement = x if isinstance(x, Measurement) else Measurement(x)
+        if not np.all(valid(measurement.value, measurement.uncertainty is not None)):
+            raise ValueError(f"{name} is undefined, or has no finite derivative, for these values")
+        return measurement.apply(function, derivative)
+
+    wrapper.__name__ = name
+    wrapper.__qualname__ = name
+    wrapper.__doc__ = (
+        f"{summary} Returns a Measurement with first-order propagated uncertainty; "
+        "units are not carried over."
+    )
+    return wrapper
+
+
+sin = _lift("sin", np.sin, np.cos, lambda v, u: np.isfinite(v), "Sine of an angle in radians.")
+cos = _lift("cos", np.cos, lambda v: -np.sin(v), lambda v, u: np.isfinite(v),
+            "Cosine of an angle in radians.")
+tan = _lift("tan", np.tan, lambda v: 1 / np.cos(v) ** 2, lambda v, u: np.abs(np.cos(v)) > 1e-12,
+            "Tangent of an angle in radians.")
+arcsin = _lift("arcsin", np.arcsin, lambda v: 1 / np.sqrt(1 - v**2), lambda v, u: np.abs(v) < 1,
+               "Inverse sine, in radians; requires |value| < 1.")
+arccos = _lift("arccos", np.arccos, lambda v: -1 / np.sqrt(1 - v**2), lambda v, u: np.abs(v) < 1,
+               "Inverse cosine, in radians; requires |value| < 1.")
+arctan = _lift("arctan", np.arctan, lambda v: 1 / (1 + v**2), lambda v, u: np.isfinite(v),
+               "Inverse tangent, in radians.")
+exp = _lift("exp", np.exp, np.exp, lambda v, u: np.isfinite(v), "Exponential, e**value.")
+log = _lift("log", np.log, lambda v: 1 / v, lambda v, u: v > 0,
+            "Natural logarithm; requires a positive value.")
+log10 = _lift("log10", np.log10, lambda v: 1 / (v * np.log(10)), lambda v, u: v > 0,
+              "Base-10 logarithm; requires a positive value.")
+sqrt = _lift("sqrt", np.sqrt, lambda v: 0.5 / np.sqrt(v), lambda v, u: v > 0 if u else v >= 0,
+             "Square root; requires a positive value (zero is allowed without uncertainty).")
+
+
+def _lift(name: str, function: Any, derivative: Any, valid: Any, summary: str) -> Any:
+    def wrapper(x: Any) -> Measurement:
+        measurement = x if isinstance(x, Measurement) else Measurement(x)
+        if not np.all(valid(measurement.value, measurement.uncertainty is not None)):
+            raise ValueError(f"{name} is undefined, or has no finite derivative, for these values")
+        return measurement.apply(function, derivative)
+
+    wrapper.__name__ = name
+    wrapper.__qualname__ = name
+    wrapper.__doc__ = (
+        f"{summary} Returns a Measurement with first-order propagated uncertainty; "
+        "units are not carried over."
+    )
+    return wrapper
+
+
+sin = _lift("sin", np.sin, np.cos, lambda v, u: np.isfinite(v), "Sine of an angle in radians.")
+cos = _lift("cos", np.cos, lambda v: -np.sin(v), lambda v, u: np.isfinite(v),
+            "Cosine of an angle in radians.")
+tan = _lift("tan", np.tan, lambda v: 1 / np.cos(v) ** 2, lambda v, u: np.abs(np.cos(v)) > 1e-12,
+            "Tangent of an angle in radians.")
+arcsin = _lift("arcsin", np.arcsin, lambda v: 1 / np.sqrt(1 - v**2), lambda v, u: np.abs(v) < 1,
+               "Inverse sine, in radians; requires |value| < 1.")
+arccos = _lift("arccos", np.arccos, lambda v: -1 / np.sqrt(1 - v**2), lambda v, u: np.abs(v) < 1,
+               "Inverse cosine, in radians; requires |value| < 1.")
+arctan = _lift("arctan", np.arctan, lambda v: 1 / (1 + v**2), lambda v, u: np.isfinite(v),
+               "Inverse tangent, in radians.")
+exp = _lift("exp", np.exp, np.exp, lambda v, u: np.isfinite(v), "Exponential, e**value.")
+log = _lift("log", np.log, lambda v: 1 / v, lambda v, u: v > 0,
+            "Natural logarithm; requires a positive value.")
+log10 = _lift("log10", np.log10, lambda v: 1 / (v * np.log(10)), lambda v, u: v > 0,
+              "Base-10 logarithm; requires a positive value.")
+sqrt = _lift("sqrt", np.sqrt, lambda v: 0.5 / np.sqrt(v), lambda v, u: v > 0 if u else v >= 0,
+             "Square root; requires a positive value (zero is allowed without uncertainty).")
 
 
 def unpack_measurements(data: Any) -> tuple:
