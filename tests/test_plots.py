@@ -14,9 +14,52 @@ from labplotlib import (  # noqa: E402
     finish_plot,
     line_plot,
     polynomial_fit,
+    scatter_plot,
     scatter_with_fit,
     scatter_with_residuals,
 )
+
+
+class FitColourTests(unittest.TestCase):
+    def tearDown(self):
+        plt.close("all")
+
+    def test_second_dataset_gets_new_colour_and_fit_is_paler_same_hue(self):
+        fig, ax = plt.subplots()
+        scatter_with_fit([1, 2, 3], [1, 2, 3.1], ax=ax)
+        scatter_with_fit([1, 2, 3], [2, 4, 6.2], ax=ax)
+
+        first, second = ax.collections
+        self.assertNotEqual(first.get_facecolor()[0].tolist(), second.get_facecolor()[0].tolist())
+        data = np.array(first.get_facecolor()[0][:3])
+        fit = np.array(ax.lines[0].get_color() if isinstance(ax.lines[0].get_color(), tuple)
+                       else plt.matplotlib.colors.to_rgb(ax.lines[0].get_color()))
+        self.assertTrue(np.all(fit >= data))
+        self.assertTrue(np.all(fit > data - 1e-9))
+
+
+class ColormapTests(unittest.TestCase):
+    def tearDown(self):
+        plt.close("all")
+
+    def test_default_cmap_is_crest_and_colorbar_added(self):
+        fig = scatter_plot([1, 2, 3], [1, 2, 3], c=[0, 1, 2], colorbar=True, colorbar_label="T")
+
+        self.assertEqual(len(fig.axes), 2)
+        self.assertEqual(fig.axes[1].get_ylabel(), "T")
+        self.assertEqual(fig.axes[0].collections[0].get_cmap().name, "crest")
+
+    def test_named_cmap_and_no_colorbar_by_default(self):
+        fig = scatter_plot([1, 2, 3], [1, 2, 3], c=[0, 1, 2], cmap="Spectral")
+
+        self.assertEqual(len(fig.axes), 1)
+        self.assertEqual(fig.axes[0].collections[0].get_cmap().name, "Spectral")
+
+    def test_cmap_without_c_or_bad_c_raises(self):
+        with self.assertRaises(ValueError):
+            scatter_plot([1, 2], [1, 2], colorbar=True)
+        with self.assertRaises(ValueError):
+            scatter_plot([1, 2], [1, 2], c=[1, 2, 3])
 
 
 class PlotTests(unittest.TestCase):

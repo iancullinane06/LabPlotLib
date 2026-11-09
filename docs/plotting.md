@@ -1,7 +1,7 @@
 # Plotting
 
 ```python
-from labplotlib import line_plot, scatter_with_fit, errorbar_plot, scatter_with_residuals
+from labplotlib import line_plot, scatter_plot, scatter_with_fit, errorbar_plot, scatter_with_residuals
 ```
 
 Each function returns a Matplotlib `Figure`. Inputs must be non-empty,
@@ -28,11 +28,11 @@ their defaults. Options following `*` in a signature are keyword-only.
 | `ax` | Optional existing Matplotlib `Axes`; its figure is returned. |
 | `axes` | Optional pair `(fit_axes, residual_axes)` of distinct axes in the same figure. |
 | `label` | Label for the data artist. |
-| `color` | Matplotlib color for the data artist. |
+| `color` | Matplotlib color for the data artist. In fit plots, defaults to the next colour in the axes' colour cycle, so each new dataset on shared axes gets a new colour. |
 | `marker` | Matplotlib marker for the data artist. |
 | `degree` | Positive integer polynomial degree; defaults to `1`. A fit requires at least `degree + 1` distinct x values. |
 | `yerr` in fit functions | Positive finite scalar or one-dimensional sequence of y standard uncertainties, used to weight the fit and draw error bars. When omitted, uncertainty is inferred from `y` if available. |
-| `fit_color` | Matplotlib color for the fitted curve, default `"C1"`. |
+| `fit_color` | Matplotlib color for the fitted curve; defaults to a paler shade of the data colour. |
 | `label_slope` | When `True`, label the fit with the coefficient of the x term; otherwise use the degree. For nonlinear fits that coefficient is not the slope at every point. |
 
 ## `line_plot`
@@ -55,13 +55,45 @@ from labplotlib import line_plot
 fig = line_plot([0, 1, 2], [1, 3, 5], xlabel="Time (s)", ylabel="Distance (m)")
 ```
 
+## `scatter_plot`
+
+```text
+scatter_plot(x, y, c=None, title=None, xlabel=None, ylabel=None,
+             filename=None, save_directory=None, show=False, figsize=(8, 5),
+             *, ax=None, label=None, color=None, marker="o", cmap=None,
+             colorbar=False, colorbar_label=None, vmin=None, vmax=None)
+```
+
+Scatter points, optionally coloured by a third variable `c` (same length as
+`x` and `y`). See the [shared parameters](#shared-parameters) and
+[colormaps and colourbars](styling.md#colormaps-and-colourbars).
+
+| Parameter | Meaning |
+| --- | --- |
+| `c` | Optional finite values mapped to colours. Without `c`, points use `color`. |
+| `cmap` | Colormap name or `Colormap`; defaults to `"crest"` when `c` is given. |
+| `colorbar` | Add a colourbar when `True`; defaults to `False`. |
+| `colorbar_label` | Optional colourbar label. |
+| `vmin`, `vmax` | Optional colour scale limits, useful for matching scales across figures. |
+
+`cmap` or `colorbar` without `c` raises `ValueError`.
+
+**Returns:** the new or existing `Figure`.
+
+```python
+from labplotlib import scatter_plot
+
+fig = scatter_plot([0, 1, 2], [1, 3, 5], c=[20, 25, 30], cmap="flare",
+                   colorbar=True, colorbar_label="Temperature (°C)")
+```
+
 ## `scatter_with_fit`
 
 ```text
 scatter_with_fit(x, y, degree=1, title=None, xlabel=None, ylabel=None,
                  filename=None, save_directory=None, show=False,
                  label_slope=True, figsize=(8, 5), *, ax=None, yerr=None,
-                 label="data", color=None, fit_color="C1", marker="o")
+                 label="data", color=None, fit_color=None, marker="o")
 ```
 
 Plot observations and a polynomial fit. See the
@@ -110,7 +142,7 @@ fig = errorbar_plot([0, 1, 2], distance, xlabel="Time (s)")
 scatter_with_residuals(x, y, degree=1, title=None, xlabel=None, ylabel=None,
                        filename=None, save_directory=None, show=False,
                        label_slope=True, figsize=(8, 7), *, axes=None,
-                       yerr=None, label="data", color=None, fit_color="C1",
+                       yerr=None, label="data", color=None, fit_color=None,
                        marker="o")
 ```
 

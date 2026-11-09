@@ -4,9 +4,32 @@ from typing import Optional, Union
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.cm import ScalarMappable
+from matplotlib.colorbar import Colorbar
+from matplotlib.colors import Colormap
 from matplotlib.figure import Figure
 
 PathLike = Union[str, Path]
+
+DEFAULT_CMAP = "crest"  # sequential; "flare" is the other recommended sequential map
+DIVERGING_CMAP = "Spectral"  # for data centred on a meaningful midpoint
+
+
+def get_cmap(cmap: Optional[Union[str, Colormap]] = None) -> Colormap:
+    """Resolve a Seaborn/Matplotlib colormap name or object; ``None`` gives ``DEFAULT_CMAP``."""
+    if isinstance(cmap, Colormap):
+        return cmap
+    return sns.color_palette(DEFAULT_CMAP if cmap is None else cmap, as_cmap=True)
+
+
+def add_colorbar(
+    fig: Figure, ax: Axes, mappable: ScalarMappable, label: Optional[str] = None
+) -> Colorbar:
+    """Attach a colourbar for ``mappable`` to ``ax``, optionally labelled."""
+    cbar = fig.colorbar(mappable, ax=ax)
+    if label is not None:
+        cbar.set_label(label)
+    return cbar
 
 
 def apply_theme() -> None:

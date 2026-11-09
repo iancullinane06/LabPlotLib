@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+- `scatter_plot()` colours points by a third variable `c`, with `cmap`,
+  `colorbar`, `colorbar_label`, `vmin`, and `vmax` options.
+- `get_cmap()` resolves Seaborn/Matplotlib colormap names; the default is
+  `"crest"`, with `"flare"` and `"Spectral"` recommended.
+- `add_colorbar()` attaches a labelled colourbar to an axes.
+
+### Changed
+- Fit plots colour the data and its fit with the same hue (fit paler). On shared
+  axes each new dataset takes the next colour in the cycle. `fit_color` now
+  defaults to `None` instead of `"C1"`.
+
 ## 0.6.0
 
 ### Added
