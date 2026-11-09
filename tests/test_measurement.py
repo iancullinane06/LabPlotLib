@@ -27,6 +27,52 @@ class MeasurementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Measurement.from_stdev([1])
 
+    def test_mean_combines_standard_error_and_independent_uncertainties(self):
+        readings = Measurement([1, 2, 3], [0.3, 0.4, 0.5], unit="m", prefix="milli")
+        result = readings.mean()
+        self.assertAlmostEqual(result.value, 2)
+        self.assertAlmostEqual(result.uncertainty, np.sqrt(1 / 3 + (0.09 + 0.16 + 0.25) / 9))
+        self.assertEqual((result.unit, result.prefix), ("m", "milli"))
+        np.testing.assert_array_equal(readings.value, [1, 2, 3])
+        np.testing.assert_allclose(readings.uncertainty, [0.3, 0.4, 0.5])
+
+    def test_mean_missing_uncertainty_and_axes(self):
+        result = Measurement([1, 2, 3]).mean()
+        self.assertAlmostEqual(result.uncertainty, np.sqrt(1 / 3))
+        readings = Measurement([[1, 10], [3, 14]], 0.2)
+        result = readings.mean(axis=0)
+        np.testing.assert_allclose(result.value, [2, 12])
+        np.testing.assert_allclose(result.uncertainty, np.sqrt([1.02, 4.02]))
+        row_means = readings.mean(axis=-1)
+        np.testing.assert_allclose(row_means.value, [5.5, 8.5])
+        np.testing.assert_allclose(row_means.uncertainty, np.sqrt([20.27, 30.27]))
+        with self.assertRaisesRegex(ValueError, "at least two"):
+            Measurement([1]).mean()
+        with self.assertRaisesRegex(ValueError, "at least two"):
+            Measurement([[1], [2]]).mean(axis=1)
+        with self.assertRaisesRegex(ValueError, "at least two"):
+            Measurement(1).mean()
+
+    def test_mean_speed_from_dataframe_measurements(self):
+        frame = pd.DataFrame({
+            "length": [0.85, 0.86, 0.84],
+            "length_error": [0.01, 0.01, 0.01],
+            "frequency": [200, 200, 200],
+            "frequency_error": [1, 1, 1],
+            "harmonic": [1, 1, 1],
+        })
+        length = Measurement.from_dataframe(frame, "length", uncertainty="length_error")
+        frequency = Measurement.from_dataframe(frame, "frequency", uncertainty="frequency_error")
+        harmonic = Measurement.from_dataframe(frame, "harmonic")
+        speed = 2 * length * frequency / harmonic
+        mean = speed.mean()
+        np.testing.assert_allclose(speed.value, [340, 344, 336])
+        expected_errors = np.sqrt(4**2 + np.array([1.7, 1.72, 1.68]) ** 2)
+        np.testing.assert_allclose(speed.uncertainty, expected_errors)
+        expected = np.sqrt(16 / 3 + np.sum(expected_errors**2) / 9)
+        self.assertAlmostEqual(mean.value, 340)
+        self.assertAlmostEqual(mean.uncertainty, expected)
+
     def test_propagation_and_missing_errors(self):
         a = Measurement.from_pm(4, 0.2)
         b = Measurement.from_pm(2, 0.1)
@@ -42,6 +88,64 @@ class MeasurementTests(unittest.TestCase):
             a / Measurement(0)
         with self.assertRaises(ValueError):
             Measurement(2, -1)
+
+    def test_string_representation(self):
+        self.assertEqual(str(Measurement(4)), "4.000")
+        self.assertEqual(str(Measurement(4, 0.2)), "4.000 ± 0.200")
+
+    def test_selectable_string_formats_and_si_prefixes_do_not_change_math(self):
+        measurement = Measurement(2_000_000, 100_000)
+        self.assertEqual(measurement.to_string(format="raw"), "2000000.000 ± 100000.000")
+        self.assertEqual(measurement.to_string(), "2.000 x 10⁶ ± 1.000 x 10⁵")
+        self.assertEqual(
+            Measurement(4).to_string(format="scientific"),
+            "4.000 x 10⁰",
+        )
+        self.assertEqual(
+            measurement.to_string(unit="Pa", prefix="mega"),
+            "2.000 ± 0.100 MPa",
+        )
+        self.assertEqual(
+            Measurement(2_000_000_000).to_string(unit="Pa", prefix="G"),
+            "2.000 GPa",
+        )
+        self.assertEqual(Measurement(999).to_string(), "999.000")
+        self.assertEqual(Measurement(0.001).to_string(), "0.001")
+        self.assertEqual(Measurement(0.0001).to_string(), "1.000 x 10⁻⁴")
+        self.assertEqual(measurement.to_string(decimals=1), "2.0 x 10⁶ ± 1.0 x 10⁵")
+        self.assertEqual(measurement.to_string(decimals=None), "2 x 10⁶ ± 1 x 10⁵")
+        self.assertEqual(measurement.value, 2_000_000)
+        self.assertEqual((measurement + Measurement(1)).value, 2_000_001)
+
+    def test_stored_display_units_do_not_affect_arithmetic(self):
+        measurement = Measurement(2_000_000, 100_000)
+        measurement.set_unit("Pa", "mega")
+        self.assertEqual(str(measurement), "2.000 ± 0.100 MPa")
+        self.assertEqual(measurement.unit, "Pa")
+        self.assertEqual(measurement.prefix, "mega")
+        self.assertIsNone((measurement + Measurement(1)).unit)
+        self.assertEqual(measurement.value, 2_000_000)
+
+        measurement.set_unit("m")
+        self.assertEqual(str(measurement), "2.000 x 10⁶ ± 1.000 x 10⁵ m")
+        measurement.set_unit(None)
+        self.assertIsNone(measurement.unit)
+        self.assertEqual(str(measurement), "2.000 x 10⁶ ± 1.000 x 10⁵")
+
+    def test_scientific_rounding_normalizes_exponent(self):
+        self.assertEqual(Measurement(9_999).to_string(decimals=0), "1 x 10⁴")
+
+    def test_string_format_rejects_invalid_options(self):
+        with self.assertRaisesRegex(ValueError, "prefix requires"):
+            Measurement(1).to_string(prefix="k")
+        with self.assertRaisesRegex(ValueError, "unsupported SI prefix"):
+            Measurement(1).to_string(unit="m", prefix="unknown")
+        with self.assertRaisesRegex(ValueError, "decimals"):
+            Measurement(1).to_string(decimals=-1)
+        with self.assertRaisesRegex(ValueError, "prefix requires"):
+            Measurement(1).set_unit(None, prefix="k")
+        with self.assertRaisesRegex(ValueError, "unsupported SI prefix"):
+            Measurement(1).set_unit("m", prefix="unknown")
 
     def test_dataframe_columns_and_plot_integration(self):
         import matplotlib.pyplot as plt

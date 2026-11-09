@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+- `Measurement.to_string()` supports raw, automatic, and scientific formats,
+  optional units, and SI prefixes that rescale display only. Automatic format
+  uses decimal notation for magnitudes from 10⁻³ up to (but not including)
+  10³, and scientific notation outside that range.
+- Measurement strings round to three decimal places by default; override this
+  with `decimals=` or disable rounding with `decimals=None`.
+- `Measurement.set_unit()` stores display-only unit and SI-prefix metadata,
+  which is included by `str()` and never changes arithmetic.
+- `Measurement.mean()` combines the sample standard error with independently
+  propagated individual measurement uncertainties in quadrature.
+
+## 0.5.0
+
+### Added
+- `Measurement` instances now print their value and, when available, their
+  uncertainty.
+
 ## 0.4.0
 
 ### Changed

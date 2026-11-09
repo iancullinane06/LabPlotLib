@@ -1,5 +1,7 @@
 # LabPlotLib
 
+[API reference and examples](docs/index.md)
+
 LabPlotLib helps with common physics-lab tasks: plotting measurements and
 error bars, fitting polynomials, inspecting residuals, propagating independent
 uncertainties, and finding mathematical symbols. It builds on NumPy,
@@ -165,6 +167,31 @@ print(positions.value, positions.uncertainty)
 print(unmeasured.uncertainty)  # None
 ```
 
+`str(measurement)` rounds to three decimal places and uses automatic formatting:
+magnitudes from `10⁻³` up to (but not including) `10³` use decimal notation;
+values outside that range use scientific notation. Choose another format or
+precision with `measurement.to_string()`:
+
+```python
+measurement = Measurement.from_pm(2_000_000, 100_000)
+measurement.to_string(format="raw")                 # 2000000.000 ± 100000.000
+measurement.to_string(format="scientific", decimals=None)  # 2 x 10⁶ ± 1 x 10⁵
+measurement.to_string(unit="Pa", prefix="mega")    # 2.000 ± 0.100 MPa
+```
+
+SI prefixes rescale only the displayed value and uncertainty; stored values
+and arithmetic are unchanged. Supply the unprefixed unit separately from its
+prefix (for example, `unit="Pa", prefix="mega"`).
+Store or clear a display unit for future printing with `set_unit()`:
+
+```python
+measurement.set_unit("Pa", "mega")
+measurement.set_unit(None)  # clear the display unit
+```
+
+Choose a different number of decimal places with `decimals=`, or pass
+`decimals=None` to retain the shortest round-trippable representation.
+
 Both `value` and `uncertainty` are NumPy arrays, including zero-dimensional
 arrays for scalar values. `from_stdev` requires at least two observations;
 pass `axis=0` or `axis=1` to summarise repeated readings in a 2D array along
@@ -177,6 +204,13 @@ analysis instead. Missing uncertainties stay `None` when none are supplied;
 when combining an uncertain value with one without an uncertainty, only the
 supplied contribution is included. This does not establish that the other
 measurement is exact. Relative uncertainty is undefined for zero values.
+
+For repeated calculated values, `measurement.mean()` returns a measurement
+whose uncertainty combines the sample standard error and the independently
+propagated individual uncertainties in quadrature. This assumes independent
+contributions; observed scatter may already include measurement noise, so
+combining both can double-count it. See the [mean reference](docs/measurement.md)
+and [speed-of-sound example](examples/speed_of_sound.py).
 
 ### CSV and pandas
 

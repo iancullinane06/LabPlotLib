@@ -9,7 +9,7 @@ from .plotting import (
 from .styling import apply_theme, finish_plot, style_axis
 from .symbols import print_symbols, search, symbols
 
-__version__ = "0.4.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "apply_theme",
