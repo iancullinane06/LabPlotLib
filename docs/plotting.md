@@ -2,7 +2,7 @@
 
 ```python
 from labplotlib import (line_plot, scatter_plot, scatter_with_fit, errorbar_plot,
-                        scatter_with_residuals, bode_plot, annotate_fit)
+                        scatter_with_residuals, scatter_with_bands, bode_plot, annotate_fit)
 ```
 
 Each function returns a Matplotlib `Figure`. Inputs must be non-empty,
@@ -141,7 +141,59 @@ scatter_with_fit([0, 1, 2], [1, 3, 5], ax=ax, label="run 1")
 scatter_with_fit([0, 1, 2], [2, 4, 7], ax=ax, label="run 2")
 ```
 
-### `annotate_fit(ax, fit, color=None)`
+## `scatter_with_bands`
+
+```text
+scatter_with_bands(x, y, title=None, xlabel=None, ylabel=None, filename=None,
+                   save_directory=None, show=False, figsize=(8, 5), *, ax=None,
+                   yerr=None, xerr=None, use_errors=True,
+                   confidence_band=True, prediction_band=True, confidence_level=0.95,
+                   confidence_uncertainty=None, prediction_uncertainty=None,
+                   fit_range=None, show_stats=False, label="data", color=None,
+                   fit_color=None, marker="o", xscale=None, yscale=None)
+```
+
+Plot a linear fit with pointwise confidence and prediction bands. Both bands
+are shown by default; disable either with `confidence_band=False` or
+`prediction_band=False`. The confidence band describes uncertainty in the
+mean fitted line, while the prediction band also includes the spread of a
+future observation. These are pointwise intervals, not simultaneous bands.
+
+| Parameter | Meaning |
+| --- | --- |
+| `yerr` | Optional positive standard uncertainties. As with `scatter_with_fit`, errors from `Measurement` y values are used by default; explicit `yerr` overrides them. They weight the fit and are assumed to be known absolute standard deviations. |
+| `use_errors` | Set to `False` to ignore inferred x and y errors; explicit errors still apply. X errors are displayed but not used in the fit or bands. |
+| `confidence_level` | Two-sided interval coverage between 0 and 1; defaults to 0.95. |
+| `confidence_uncertainty` | Optional externally calculated standard uncertainty of the fitted mean, either a scalar or 200 values corresponding to the fit grid. A normal critical value converts it to a confidence band. It does not change the fitted line or prediction band. |
+| `prediction_uncertainty` | Optional standard deviation for a future observation, either a scalar or 200 values on the fit grid. Required when the input y uncertainties vary and a prediction band is requested. |
+| `fit_range` | Optional `(minimum, maximum)` of the fitted line and bands, for example `(0, 0.25)` to extrapolate to a series limit. Values must be positive for a log x axis. |
+
+With known y uncertainties, the weighted fit and its covariance use those
+absolute uncertainties and normal critical values. A constant y uncertainty
+also supplies the future-observation uncertainty unless one is specified.
+Without y uncertainties, the unweighted fit estimates the residual variance
+and uses Student's t critical values.
+At least three points are required for an unweighted automatic band.
+All calculations assume independent errors, a suitable linear model and
+normally distributed residuals; extrapolation requires additional care.
+
+```python
+from labplotlib import Measurement, scatter_with_bands
+
+x = [0.05, 0.10, 0.15, 0.20]
+y = Measurement([2.0, 3.2, 4.1, 5.5], [0.1, 0.15, 0.1, 0.2])
+fig = scatter_with_bands(x, y, fit_range=(0, 0.25),
+                         prediction_uncertainty=0.15)
+ax = fig.axes[0]
+ax.axvline(0.25, color="purple", linestyle=":", label="Series limit")
+ax.set_xlim(0, 0.26)
+ax.legend()
+```
+
+The function returns a `Figure` and accepts existing `ax`, styling, error bar,
+and saving options as in [`scatter_with_fit`](#scatter_with_fit).
+
+## `annotate_fit(ax, fit, color=None)`
 
 Add a text box to `ax` listing the fit parameters (for a `ModelFit`) and, when
 available, χ², reduced χ², p-value and R². `scatter_with_fit(show_stats=True)`

@@ -73,6 +73,7 @@ Add units to axis labels as shown above.
 | `line_plot(x, y)` | Data connected by a line. |
 | `errorbar_plot(x, y, xerr=..., yerr=...)` | Points with optional x and y error bars. |
 | `scatter_with_fit(x, y, degree=1, yerr=..., model=...)` | Points and a polynomial or custom-model fit, in matching colours, with errors by default. |
+| `scatter_with_bands(x, y, fit_range=...)` | Linear fit with confidence and prediction bands, optionally extended beyond the data. |
 | `scatter_with_residuals(x, y, degree=1, yerr=...)` | A fit and a second axes showing residuals. |
 | `bode_plot(f, gain, phase)` | Gain in dB on a log frequency axis, with phase on a twin axis. |
 

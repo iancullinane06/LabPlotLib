@@ -30,13 +30,14 @@ from .plotting import (
     errorbar_plot,
     line_plot,
     scatter_plot,
+    scatter_with_bands,
     scatter_with_fit,
     scatter_with_residuals,
 )
 from .styling import add_colorbar, apply_theme, finish_plot, get_cmap, style_axis
 from .symbols import print_symbols, search, symbols
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 
 __all__ = [
     "add_colorbar",
@@ -73,6 +74,7 @@ __all__ = [
     "print_symbols",
     "polynomial_fit",
     "scatter_plot",
+    "scatter_with_bands",
     "scatter_with_fit",
     "scatter_with_residuals",
     "search",

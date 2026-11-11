@@ -7,11 +7,12 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap, to_hex, to_rgba
 from matplotlib.figure import Figure
+from scipy.stats import norm, t
 
 from .electronics import gain_to_db
-from .fitting import ModelFit, Model, fit_model, fit_statistics
+from .fitting import Model, ModelFit, fit_model, fit_statistics
 from .measurement import unpack_measurements
-from .methods import Errors, PlotErrors, _data, polynomial_fit
+from .methods import Errors, PlotErrors, _data, _errors, polynomial_fit
 from .styling import PathLike, add_colorbar, finish_plot, get_cmap, style_axis
 
 Size = Tuple[float, float]
@@ -50,6 +51,65 @@ def _apply_scales(ax: Axes, xscale: Scale, yscale: Scale) -> None:
         ax.set_xscale(xscale)
     if yscale is not None:
         ax.set_yscale(yscale)
+
+
+def _fit_bands(x, fit_x, fit, yerr, confidence_band, prediction_band, confidence_level,
+               confidence_uncertainty, prediction_uncertainty):
+    """Return pointwise interval half-widths for the requested bands."""
+    if not (confidence_band or prediction_band):
+        if confidence_uncertainty is not None or prediction_uncertainty is not None:
+            raise ValueError("band uncertainties require the corresponding band to be enabled")
+        return None, None
+    if not np.isfinite(confidence_level) or not 0 < confidence_level < 1:
+        raise ValueError("confidence_level must be between 0 and 1")
+    if confidence_uncertainty is not None and not confidence_band:
+        raise ValueError("confidence_uncertainty requires confidence_band=True")
+    if prediction_uncertainty is not None and not prediction_band:
+        raise ValueError("prediction_uncertainty requires prediction_band=True")
+
+    automatic = prediction_band or (confidence_band and confidence_uncertainty is None)
+    if automatic and (isinstance(fit, ModelFit) or len(fit.coefficients) != 2):
+        raise ValueError("automatic bands require a linear polynomial fit")
+    mean_variance = None
+    critical = None
+    if automatic:
+        if yerr is None:
+            dof = len(x) - 2
+            if dof <= 0:
+                raise ValueError("unweighted bands require at least three data points")
+            variance = float(np.sum(fit.residuals ** 2) / dof)
+            center = np.mean(x)
+            sxx = np.sum((x - center) ** 2)
+            mean_variance = variance * (1 / len(x) + (fit_x - center) ** 2 / sxx)
+            critical = t.ppf((1 + confidence_level) / 2, dof)
+        else:
+            errors = _errors(yerr, len(x), "yerr", True)
+            weights = 1 / errors ** 2
+            center = np.average(x, weights=weights)
+            sxx = np.sum(weights * (x - center) ** 2)
+            mean_variance = 1 / np.sum(weights) + (fit_x - center) ** 2 / sxx
+            critical = norm.ppf((1 + confidence_level) / 2)
+
+    confidence_width = None
+    if confidence_band:
+        if confidence_uncertainty is None:
+            confidence_width = critical * np.sqrt(mean_variance)
+        else:
+            sigma = _errors(confidence_uncertainty, len(fit_x), "confidence_uncertainty")
+            confidence_width = norm.ppf((1 + confidence_level) / 2) * sigma
+
+    prediction_width = None
+    if prediction_band:
+        if prediction_uncertainty is not None:
+            sigma = _errors(prediction_uncertainty, len(fit_x), "prediction_uncertainty")
+        elif yerr is None:
+            sigma = np.sqrt(variance)
+        elif np.all(errors == errors[0]):
+            sigma = errors[0]
+        else:
+            raise ValueError("prediction_uncertainty is required when yerr varies")
+        prediction_width = critical * np.sqrt(mean_variance + sigma ** 2)
+    return confidence_width, prediction_width
 
 
 def annotate_fit(ax: Axes, fit: Any, color: Optional[str] = None) -> None:
@@ -186,6 +246,51 @@ def scatter_with_fit(
     fig, _ = _scatter_fit(
         x, y, degree, title, xlabel, ylabel, label_slope, label_intercept, figsize, ax, yerr,
         xerr, use_errors, model, p0, show_stats, label, color, fit_color, marker, xscale, yscale,
+        False, False, 0.95, None, None, None,
+    )
+    return _finish_if_requested(fig, filename, save_directory, show)
+
+
+def scatter_with_bands(
+    x: Sequence[float],
+    y: Sequence[float],
+    title: Optional[str] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    filename: Optional[PathLike] = None,
+    save_directory: Optional[PathLike] = None,
+    show: bool = False,
+    figsize: Size = (8, 5),
+    *,
+    ax: Optional[Axes] = None,
+    yerr: Optional[Errors] = None,
+    xerr: Optional[PlotErrors] = None,
+    use_errors: bool = True,
+    confidence_band: bool = True,
+    prediction_band: bool = True,
+    confidence_level: float = 0.95,
+    confidence_uncertainty: Optional[Errors] = None,
+    prediction_uncertainty: Optional[Errors] = None,
+    fit_range: Optional[Tuple[float, float]] = None,
+    show_stats: bool = False,
+    label: str = "data",
+    color: Optional[str] = None,
+    fit_color: Optional[str] = None,
+    marker: str = "o",
+    xscale: Scale = None,
+    yscale: Scale = None,
+) -> Figure:
+    """Plot a linear fit with pointwise confidence and prediction bands.
+
+    Measurement y uncertainties or explicit yerr are absolute standard deviations;
+    varying yerr requires prediction_uncertainty for a prediction band.
+    Supplied band uncertainties are standard deviations, not interval half-widths.
+    """
+    fig, _ = _scatter_fit(
+        x, y, 1, title, xlabel, ylabel, True, True, figsize, ax, yerr,
+        xerr, use_errors, None, None, show_stats, label, color, fit_color, marker,
+        xscale, yscale, confidence_band, prediction_band, confidence_level,
+        confidence_uncertainty, prediction_uncertainty, fit_range,
     )
     return _finish_if_requested(fig, filename, save_directory, show)
 
@@ -193,6 +298,8 @@ def scatter_with_fit(
 def _scatter_fit(
     x, y, degree, title, xlabel, ylabel, label_slope, label_intercept, figsize, ax, yerr, xerr,
     use_errors, model, p0, show_stats, label, color, fit_color, marker, xscale, yscale,
+    confidence_band, prediction_band, confidence_level, confidence_uncertainty,
+    prediction_uncertainty, fit_range,
 ):
     """Draw data and fit on ``ax``; return the figure and the fit result."""
     if use_errors:
@@ -207,6 +314,24 @@ def _scatter_fit(
         fit = fit_model(model, x_values, y_values, yerr, p0)
     plot_yerr = None if yerr is None else _plot_errors(yerr, x_values.size, "yerr")
     plot_xerr = None if xerr is None else _plot_errors(xerr, x_values.size, "xerr")
+    if fit_range is None:
+        low, high = x_values.min(), x_values.max()
+    else:
+        limits = np.asarray(fit_range, dtype=float)
+        if limits.shape != (2,) or not np.all(np.isfinite(limits)) or limits[0] >= limits[1]:
+            raise ValueError("fit_range must contain two finite, increasing limits")
+        low, high = limits
+    log_x = xscale == "log" or (xscale is None and ax is not None and ax.get_xscale() == "log")
+    if log_x and low <= 0 and (fit_range is not None or confidence_band or prediction_band):
+        raise ValueError("fit range must be positive on a log x axis")
+    if log_x and low > 0:
+        fit_x = np.geomspace(low, high, 200)
+    else:
+        fit_x = np.linspace(low, high, 200)
+    confidence_width, prediction_width = _fit_bands(
+        x_values, fit_x, fit, yerr, confidence_band, prediction_band, confidence_level,
+        confidence_uncertainty, prediction_uncertainty,
+    )
     fig, ax = _axes(ax, figsize)
     _apply_scales(ax, xscale, yscale)
     color, fit_color = _series_colors(ax, color, fit_color)
@@ -215,11 +340,6 @@ def _scatter_fit(
     else:
         ax.errorbar(x_values, y_values, yerr=plot_yerr, xerr=plot_xerr, fmt=marker, color=color,
                     label=label, capsize=3)
-    low, high = x_values.min(), x_values.max()
-    if ax.get_xscale() == "log" and low > 0:
-        fit_x = np.geomspace(low, high, 200)
-    else:
-        fit_x = np.linspace(low, high, 200)
     if model is not None:
         fit_y, fit_label = fit.predict(fit_x), "fit"
     else:
@@ -229,6 +349,14 @@ def _scatter_fit(
             fit_label += f" + {fit.coefficients[-1]:.3g})" if label_intercept else ")"
         else:
             fit_label = f"fit (degree {degree})"
+    if prediction_width is not None:
+        ax.fill_between(fit_x, fit_y - prediction_width, fit_y + prediction_width,
+                        color=fit_color, alpha=0.15,
+                        label=f"{100 * confidence_level:g}% prediction")
+    if confidence_width is not None:
+        ax.fill_between(fit_x, fit_y - confidence_width, fit_y + confidence_width,
+                        color=fit_color, alpha=0.35,
+                        label=f"{100 * confidence_level:g}% confidence")
     ax.plot(fit_x, fit_y, color=fit_color, label=fit_label)
     if show_stats:
         annotate_fit(ax, fit, color)
@@ -323,6 +451,7 @@ def scatter_with_residuals(
     _, fit = _scatter_fit(
         x_values, y_values, degree, title, None, ylabel, label_slope, True, figsize, ax, yerr,
         xerr, False, model, p0, show_stats, label, color, fit_color, marker, xscale, yscale,
+        False, False, 0.95, None, None, None,
     )
     if xscale is not None:
         residual_ax.set_xscale(xscale)

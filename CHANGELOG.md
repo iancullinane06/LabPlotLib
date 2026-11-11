@@ -1,13 +1,16 @@
 # Changelog
 
-## 0.8.0
+## 0.10.0
 
 ### Added
-- `scatter_plot()` colours points by a third variable `c`, with `cmap`,
-  `colorbar`, `colorbar_label`, `vmin`, and `vmax` options.
-- `get_cmap()` resolves Seaborn/Matplotlib colormap names; the default is
-  `"crest"`, with `"flare"` and `"Spectral"` recommended.
-- `add_colorbar()` attaches a labelled colourbar to an axes.
+- `scatter_with_bands()` draws a linear fit with pointwise confidence and
+  prediction bands. Both default to 95% coverage, which can be adjusted.
+  Bands can use measurement uncertainties or supplied uncertainties, and
+  `fit_range` can extend the fit beyond the data.
+
+## 0.9.0
+
+### Added
 - `fit_model()` fits any `model(x, *params)` with uncertainties, χ², reduced χ²
   and p-value; built-in `exponential_decay`, `exponential_rise`, `lorentzian`,
   `gaussian`, `power_law` and `diode` models guess their own start values.
@@ -26,6 +29,17 @@
 ### Changed
 - `scatter_with_fit()` draws and uses `Measurement` uncertainties by default;
   pass `use_errors=False` to disable.
+
+## 0.8.0
+
+### Added
+- `scatter_plot()` colours points by a third variable `c`, with `cmap`,
+  `colorbar`, `colorbar_label`, `vmin`, and `vmax` options.
+- `get_cmap()` resolves Seaborn/Matplotlib colormap names; the default is
+  `"crest"`, with `"flare"` and `"Spectral"` recommended.
+- `add_colorbar()` attaches a labelled colourbar to an axes.
+
+### Changed
 - Fit plots colour the data and its fit with the same hue (fit paler). On shared
   axes each new dataset takes the next colour in the cycle. `fit_color` now
   defaults to `None` instead of `"C1"`.

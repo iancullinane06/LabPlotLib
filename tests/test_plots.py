@@ -8,16 +8,93 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 import numpy as np  # noqa: E402
 from matplotlib import pyplot as plt  # noqa: E402
+from scipy.stats import norm, t  # noqa: E402
 
 from labplotlib import (  # noqa: E402
+    Measurement,
     errorbar_plot,
     finish_plot,
     line_plot,
     polynomial_fit,
     scatter_plot,
+    scatter_with_bands,
     scatter_with_fit,
     scatter_with_residuals,
 )
+
+
+class FitBandTests(unittest.TestCase):
+    def tearDown(self):
+        plt.close("all")
+
+    def band_width(self, ax, name, x):
+        band = next(c for c in ax.collections if c.get_label().endswith(name))
+        vertices = band.get_paths()[0].vertices
+        y = vertices[np.isclose(vertices[:, 0], x, rtol=0, atol=1e-12), 1]
+        self.assertGreaterEqual(len(y), 2)
+        return (y.max() - y.min()) / 2
+
+    def test_unweighted_bands_match_ols_formula_and_extend_range(self):
+        x = np.array([0., 1., 2., 3., 4.])
+        y = np.array([1., 2.8, 5.2, 6.7, 9.1])
+        fig = scatter_with_bands(x, y, fit_range=(0, 6))
+        ax = fig.axes[0]
+        line = ax.lines[0]
+        self.assertEqual(line.get_xdata()[-1], 6)
+        residuals = y - np.polyval(np.polyfit(x, y, 1), x)
+        variance = np.sum(residuals ** 2) / 3
+        leverage = 1 / 5 + (6 - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2)
+        critical = t.ppf(.975, 3)
+        self.assertAlmostEqual(self.band_width(ax, "confidence", 6),
+                               critical * np.sqrt(variance * leverage))
+        self.assertAlmostEqual(self.band_width(ax, "prediction", 6),
+                               critical * np.sqrt(variance * (1 + leverage)))
+
+    def test_weighted_measurement_and_explicit_future_uncertainty(self):
+        x = np.array([0., 1., 2., 3.])
+        errors = np.array([.1, .2, .4, .3])
+        y = Measurement([0., 1.1, 1.7, 3.3], errors)
+        with self.assertRaisesRegex(ValueError, "prediction_uncertainty"):
+            scatter_with_bands(x, y)
+        fig = scatter_with_bands(x, y, prediction_uncertainty=.5)
+        ax = fig.axes[0]
+        weights = 1 / errors ** 2
+        center = np.average(x, weights=weights)
+        variance = 1 / weights.sum() + (3 - center) ** 2 / np.sum(weights * (x - center) ** 2)
+        self.assertAlmostEqual(self.band_width(ax, "confidence", 3),
+                               norm.ppf(.975) * np.sqrt(variance))
+        self.assertAlmostEqual(self.band_width(ax, "prediction", 3),
+                               norm.ppf(.975) * np.sqrt(variance + .5 ** 2))
+        self.assertTrue(ax.containers)
+        np.testing.assert_allclose(ax.lines[-1].get_ydata()[-1],
+                                   np.polyval(np.polyfit(x, y.value, 1, w=1/errors), 3))
+
+    def test_explicit_and_constant_uncertainties_and_residual_mode(self):
+        fig = scatter_with_bands([0, 1, 2], Measurement([1, 2, 4], .2),
+                                 confidence_uncertainty=.5, confidence_level=.9)
+        ax = fig.axes[0]
+        self.assertAlmostEqual(self.band_width(ax, "confidence", 2), norm.ppf(.95) * .5)
+        self.assertGreater(self.band_width(ax, "prediction", 2), 0)
+        without = scatter_with_bands([0, 1, 2], Measurement([1, 2, 4], .2),
+                                     use_errors=False, prediction_band=False)
+        self.assertFalse(without.axes[0].containers)
+        self.assertFalse(any(c.get_label().endswith("prediction")
+                             for c in without.axes[0].collections))
+
+    def test_validation_and_composition(self):
+        x, y = [1, 2, 3], [1, 2, 4]
+        fig, ax = plt.subplots()
+        self.assertIs(scatter_with_bands(x, y, ax=ax, fit_range=(1, 10), xscale="log"), fig)
+        self.assertEqual(ax.lines[0].get_xdata()[-1], 10)
+        for kwargs in (
+            {"confidence_level": 1}, {"fit_range": (2, 1)}, {"fit_range": (0, 4), "xscale": "log"},
+            {"confidence_uncertainty": -1}, {"prediction_uncertainty": [1, 2]},
+            {"prediction_band": False, "prediction_uncertainty": 1},
+        ):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                scatter_with_bands(x, y, **kwargs)
+        with self.assertRaisesRegex(ValueError, "at least three"):
+            scatter_with_bands([1, 2], [1, 2])
 
 
 class FitColourTests(unittest.TestCase):
