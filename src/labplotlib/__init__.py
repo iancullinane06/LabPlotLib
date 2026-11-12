@@ -38,7 +38,7 @@ from .plotting import (
 from .styling import add_colorbar, apply_theme, finish_plot, get_cmap, style_axis
 from .symbols import print_symbols, search, symbols
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 __all__ = [
     "add_colorbar",
