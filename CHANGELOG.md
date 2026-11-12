@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+### Added
+- `labplotlib.consts` provides scientific constants in SI units, including
+  the Boltzmann constant (`consts.kb`), speed of light, Planck constant,
+  particle masses and gravitational constant.
+- Constants behave like floats and expose their `name`, `value`, `unit` and
+  `ref`. They can be used directly in arithmetic with `Measurement` objects;
+  their own uncertainty is not propagated.
+- Running `src/labplotlib/consts.py` directly lists the available constants.
+
 ## 0.10.0
 
 ### Added

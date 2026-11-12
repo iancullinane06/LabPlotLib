@@ -1,3 +1,4 @@
+from . import consts
 from .electronics import (
     Resonance,
     cutoff_frequencies,
@@ -44,6 +45,7 @@ __all__ = [
     "annotate_fit",
     "apply_theme",
     "bode_plot",
+    "consts",
     "cutoff_frequencies",
     "cutoff_frequency",
     "diode",
